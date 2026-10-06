@@ -1,0 +1,51 @@
+name: Build Commerce Admin APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Prepare project
+        run: |
+          unzip -q CommerceAdminAndroid.zip -d extracted
+          cp -r extracted/. commerce-project/
+          rm -rf extracted
+          cd commerce-project
+          chmod +x gradlew 2>/dev/null || true
+
+      - name: Generate Gradle wrapper
+        working-directory: commerce-project
+        run: |
+          gradle wrapper --gradle-version 8.9
+          chmod +x gradlew
+
+      - name: Build APK
+        working-directory: commerce-project
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: CommerceAdmin-debug-apk
+          path: commerce-project/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
